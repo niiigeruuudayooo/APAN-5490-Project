@@ -1,0 +1,30 @@
+name: CI - Verify MongoDB Atlas
+
+on:
+  push:
+    branches: [ backend-atlas-link ]
+  pull_request:
+    branches: [ backend-atlas-link, main ]
+  workflow_dispatch: {}   # 允许手动触发
+
+jobs:
+  verify-atlas:
+    runs-on: ubuntu-latest
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB: ${{ secrets.MONGODB_DB || 'fintrack' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm install
+
+      - name: Verify Atlas connection
+        run: node ci/check-db.js
