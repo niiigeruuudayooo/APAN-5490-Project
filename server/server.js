@@ -1,46 +1,40 @@
-// server/server.js
+/**
+ * App entry: loads env, connects DB, configures Express, mounts routes.
+ */
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const connectDB = require('./config/db');
 
-const { connectMongo } = require('./db/connect');
+const authRoutes = require('./routes/auth');
+const transactionsRoutes = require('./routes/transactions');
+const budgetsRoutes = require('./routes/budgets');
 
 const app = express();
 
-// 安全 & 基础中间件
-app.use(helmet());
-app.use(cors());
+// Connect Mongo
+connectDB();
+
+// Global middleware
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(cookieParser());
 
-// 针对认证接口做轻量限流（防刷）
-app.use('/api/auth', rateLimit({ windowMs: 60 * 1000, max: 30 }));
-
-// 静态资源（前端）
+// Static front-end
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// 路由
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/', require('./routes/healthRoutes'));
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/budgets', budgetsRoutes);
 
-// TODO: Joe 的受保护接口（示例）
-// const auth = require('./middleware/auth');
-// app.use('/api/transactions', auth, require('./routes/transactionsRoutes'));
-// app.use('/api/stats', auth, require('./routes/statsRoutes'));
+// Fallback to front-end (single-page or simple static index.html)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
 
+// Start server
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
-const MONGO_DB = process.env.MONGO_DB || 'fintrack';
-
-connectMongo(MONGODB_URI, MONGO_DB)
-  .then(() => {
-    app.listen(PORT, () => console.log(`🚀 Server running http://localhost:${PORT}`));
-  })
-  .catch(err => {
-    console.error('Mongo connect failed:', err);
-    process.exit(1);
-  });
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+});
