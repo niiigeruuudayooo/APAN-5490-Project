@@ -24,7 +24,7 @@ jobs:
           cache: 'npm'
 
       - name: Install deps
-        run: npm ci
+        run: npm install
 
       - name: Verify Atlas connection
         run: node ci/check-db.js
