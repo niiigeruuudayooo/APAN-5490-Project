@@ -1,40 +1,55 @@
-/**
- * App entry: loads env, connects DB, configures Express, mounts routes.
- */
+// server/server.js
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const connectDB = require('./config/db');
 
+const { connectDB } = require('./config/db');
+
+// Route imports
 const authRoutes = require('./routes/auth');
 const transactionsRoutes = require('./routes/transactions');
 const budgetsRoutes = require('./routes/budgets');
+const healthRoutes = require('./routes/healthRoutes');
 
 const app = express();
 
-// Connect Mongo
-connectDB();
+// ===== Database Connection =====
+connectDB().catch(err => {
+  console.error('❌ MongoDB connection failed:', err);
+  process.exit(1);
+});
 
-// Global middleware
+// ===== Security & Middleware =====
+app.use(helmet());
+app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
+app.use(morgan('dev'));
 
-// Static front-end
+// Rate limiting for auth endpoints
+app.use('/api/auth', rateLimit({ windowMs: 60 * 1000, max: 30 }));
+
+// ===== Static Frontend =====
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// API routes
+// ===== API Routes =====
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/budgets', budgetsRoutes);
+app.use('/', healthRoutes); // Health check routes
 
-// Fallback to front-end (single-page or simple static index.html)
+// ===== SPA / Frontend Fallback =====
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// Start server
+// ===== Start Server =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
