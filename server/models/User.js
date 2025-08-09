@@ -1,16 +1,15 @@
-// server/models/User.js
-const { getCollection } = require('../db/connect');
+/**
+ * User model: stores login credentials (hashed) and profile basics.
+ */
+const mongoose = require('mongoose');
 
-const Users = () => getCollection('users');
+const UserSchema = new mongoose.Schema(
+  {
+    email: { type: String, unique: true, required: true, index: true },
+    passwordHash: { type: String, required: true },
+    name: { type: String }
+  },
+  { timestamps: true }
+);
 
-async function findByEmail(email) {
-  return Users().findOne({ email });
-}
-
-async function createUser({ email, passwordHash, name }) {
-  const doc = { email, passwordHash, name: name || '', createdAt: new Date() };
-  const res = await Users().insertOne(doc);
-  return { _id: res.insertedId, ...doc };
-}
-
-module.exports = { findByEmail, createUser };
+module.exports = mongoose.model('User', UserSchema);
