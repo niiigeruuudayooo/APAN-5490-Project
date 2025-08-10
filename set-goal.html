@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Set Budget Goal</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body data-page="set-goal">
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#"><img src="./logo.png" alt="FinTrack logo" class="logo"></a>
+    <nav class="nav">
+        <a class="nav-link" href="dashboard.html">Dashboard</a>
+        <a class="nav-link active" href="set-goal.html">Budget Goal</a>
+        <a id="logoutBtn" class="nav-link" href="#">Log out</a>
+    </nav>
+
+    </div>
+  </header>
+
+  <!-- Back -->
+  <div class="container back-row">
+    <a class="back-link" href="javascript:history.back()">‹ Back</a>
+  </div>
+
+  <!-- Content -->
+  <main class="container auth-wrap">
+    <section class="card" style="max-width:640px;">
+      <h1 class="title">Stay on track. Crush your goals.</h1>
+
+      <form id="goalForm" novalidate>
+        <fieldset class="fields" style="margin-top:6px;">
+          <legend class="legend">Set your monthly budget goal</legend>
+
+          <label class="field">
+            <span>Budget Goal (USD)</span>
+            <input id="goalAmount" type="number" min="1" step="1" placeholder="e.g., 4000" required />
+            <small class="hint">This is your total spending limit for the current month.</small>
+            <small class="error" id="goalError" aria-live="polite"></small>
+          </label>
+
+          <button id="goalSave" class="btn btn-primary" type="submit" disabled>Save & Continue</button>
+        </fieldset>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./main.js"></script>
+</body>
+</html>

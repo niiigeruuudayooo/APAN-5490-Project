@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Sign Up</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body data-page="signup">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#"><img src="./logo.png" alt="FinTrack logo" class="logo"></a>
+      
+
+    </div>
+  </header>
+
+  <div class="container back-row">
+    <a class="back-link" href="javascript:history.back()">&lt; Back</a>
+  </div>
+
+  <main class="container auth-wrap">
+    <section class="card">
+      <h1 class="title">👋 Welcome to FinTrack</h1>
+
+      <div class="oauth">
+        <p class="oauth-title">Continue with</p>
+        <div class="oauth-row">
+          <button class="btn btn-ghost" type="button"><span class="icon-circle">G</span> Google</button>
+          <button class="btn btn-ghost" type="button"><span class="icon-circle"></span> Apple</button>
+        </div>
+      </div>
+
+      <div class="divider" role="separator"><span>or</span></div>
+
+      <form id="signupForm" novalidate>
+        <fieldset class="fields">
+          <legend class="legend">Create account</legend>
+
+          <label class="field">
+            <span>First Name</span>
+            <input id="firstName" name="firstName" type="text" placeholder="First name" required />
+          </label>
+
+          <label class="field">
+            <span>Last Name</span>
+            <input id="lastName" name="lastName" type="text" placeholder="Last name" required />
+          </label>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="email" name="email" type="email" placeholder="Enter your email" required />
+            <small class="error" id="emailError" aria-live="polite"></small>
+          </label>
+
+          <label class="field">
+            <span>Password</span>
+            <div class="password-wrap">
+              <input id="password" name="password" type="password" placeholder="Enter your password" minlength="8" required />
+              <button type="button" class="pw-toggle" aria-label="Toggle password visibility">👁</button>
+            </div>
+            <small class="hint">At least 8 characters, include a number.</small>
+            <small class="error" id="passwordError" aria-live="polite"></small>
+          </label>
+
+          <label class="field">
+            <span>Confirm Password</span>
+            <input id="confirm" name="confirm" type="password" placeholder="Confirm password" required />
+            <small class="error" id="confirmError" aria-live="polite"></small>
+          </label>
+
+          <label class="check">
+            <input id="terms" type="checkbox" required />
+            <span>I agree to the <a href="#" tabindex="0">Terms</a> and <a href="#" tabindex="0">Privacy</a></span>
+          </label>
+
+          <button id="submitBtn" class="btn btn-primary" type="submit" disabled>Sign Up</button>
+        </fieldset>
+
+        <p class="muted foot">
+          Already have an account? <a href="login.html">Log in</a>
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./main.js"></script>
+</body>
+</html>

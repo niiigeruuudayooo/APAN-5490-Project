@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Forgot Password</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="signup.html">
+        <img src="./logo.png" alt="FinTrack logo" class="logo">
+      </a>
+      
+    </div>
+  </header>
+
+  <!-- Back link -->
+  <div class="container back-row">
+    <a class="back-link" href="javascript:history.back()">&lt; Back</a>
+  </div>
+
+  <main class="container auth-wrap">
+    <section class="card">
+      <h1 class="title">Stay on track. Crush your goals.</h1>
+
+      <!-- Block 1: Reset password by email -->
+      <form id="resetForm" novalidate>
+        <fieldset class="fields">
+          <legend class="legend">To Reset Password</legend>
+          <p class="hint" style="margin-top:-6px;">Please enter your email address</p>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="fpEmail" type="email" placeholder="Enter your email" required />
+            <small class="error" id="fpEmailErr"></small>
+          </label>
+
+          <button id="resetBtn" class="btn btn-primary" type="submit" disabled>Confirm</button>
+        </fieldset>
+      </form>
+
+      <div class="divider" role="separator"><span>or</span></div>
+
+      <!-- Block 2: Find username -->
+      <form id="findForm" novalidate>
+        <fieldset class="fields">
+          <legend class="legend">To Find User Name</legend>
+          <p class="hint" style="margin-top:-6px;">Please enter your account information</p>
+
+          <label class="field">
+            <span>First Name</span>
+            <input id="fnFirst" type="text" placeholder="First Name" required />
+          </label>
+
+          <label class="field">
+            <span>Last Name</span>
+            <input id="fnLast" type="text" placeholder="Last Name" required />
+          </label>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="fnEmail" type="email" placeholder="Enter your email" required />
+            <small class="error" id="fnEmailErr"></small>
+          </label>
+
+          <button id="findBtn" class="btn btn-primary" type="submit" disabled>Search</button>
+        </fieldset>
+
+        <p class="muted foot">
+          Remember your password? <a href="login.html">Log In</a> · New here? <a href="signup.html">Sign Up</a>
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./main.js"></script>
+</body>
+</html>

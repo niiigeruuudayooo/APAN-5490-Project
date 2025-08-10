@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Budget Goal</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body data-page="budget-goal">
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#"><img src="./logo.png" alt="FinTrack logo" class="logo"></a>
+    <nav class="nav">
+        <a class="nav-link" href="dashboard.html">Dashboard</a>
+        <a class="nav-link active" href="set-goal.html">Budget Goal</a>
+        <a id="logoutBtn" class="nav-link" href="#">Log out</a>
+    </nav>
+    </div>
+  </header>
+
+  <!-- Back -->
+  <div class="container back-row">
+    <a class="back-link" href="javascript:history.back()">‹ Back</a>
+  </div>
+
+  <main class="container goal-wrap">
+    <!-- Slogan -->
+    <h1 class="title" style="text-align:left;margin-bottom:10px;">Stay on track. Crush your goals.</h1>
+
+    <!-- Hero (single column now) -->
+    <section class="card goal-hero">
+      <div class="hero-left">
+        <p class="goal-line">Your Budget Goal is <strong id="goalAmountBig">$0</strong> this month</p>
+        <p class="spent-line">Now you have Spent</p>
+        <p class="spent-big" id="spentBig">$0</p>
+      </div>
+    </section>
+
+    <!-- Grid: Top categories + Guidance -->
+    <section class="goal-grid">
+      <article class="card">
+        <h2 class="section-title">Your Top 4 Spending this Month</h2>
+        <div class="goal-table">
+          <div class="goal-thead">
+            <div>Category</div>
+            <div>Spent</div>
+            <div>Compared to Last Month</div>
+          </div>
+          <div id="topRows" class="goal-tbody"></div>
+        </div>
+      </article>
+
+      <aside class="card guidance">
+        <h3 class="section-title">If you want to achieve your goal:</h3>
+        <p class="guidance-line"><span id="guidanceText"></span></p>
+      </aside>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./budget-goal.js"></script>
+</body>
+</html>
+

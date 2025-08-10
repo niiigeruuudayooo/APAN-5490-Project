@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Log In</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body data-page="login">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#">
+        <img src="./logo.png" alt="FinTrack logo" class="logo">
+      </a>
+    
+    </div>
+  </header>
+
+  <div class="container back-row">
+    <a class="back-link" href="javascript:history.back()">&lt; Back</a>
+  </div>
+
+  <main class="container auth-wrap">
+    <section class="card">
+      <h1 class="title">Stay on track. Crush your goals.</h1>
+
+      <div class="oauth">
+        <p class="oauth-title">Continue with</p>
+        <div class="oauth-row">
+          <button class="btn btn-ghost" type="button"><span class="icon-circle">G</span> Google</button>
+          <button class="btn btn-ghost" type="button"><span class="icon-circle"></span> Apple</button>
+        </div>
+      </div>
+
+      <div class="divider" role="separator"><span>or</span></div>
+
+      <form id="loginForm" novalidate>
+        <fieldset class="fields">
+          <legend class="legend">Log In</legend>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="username" name="username" type="email" placeholder="Enter your email" required />
+        </label>
+
+
+          <label class="field">
+            <span>Password</span>
+            <div class="password-wrap">
+              <input id="password" name="password" type="password" placeholder="Enter your password" required />
+              <button type="button" class="pw-toggle" aria-label="Toggle password visibility">👁</button>
+            </div>
+          </label>
+
+          <button id="loginBtn" class="btn btn-primary" type="submit" disabled>Log In</button>
+        </fieldset>
+
+        <p class="muted foot">
+          Don’t have an account? <a href="signup.html">Sign Up</a>
+        </p>
+        <p class="muted foot">
+          <a href="forgot.html">Forgot Password?</a>
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./main.js"></script>
+</body>
+</html>

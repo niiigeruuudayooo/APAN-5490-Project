@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FinTrack — Dashboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Chart.js for the pie chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="dashboard">
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#">
+        <img src="./logo.png" alt="FinTrack logo" class="logo">
+      </a>
+    <nav class="nav">
+        <a class="nav-link active" href="dashboard.html">Dashboard</a>
+        <a class="nav-link" href="set-goal.html">Budget Goal</a>
+        <a id="logoutBtn" class="nav-link" href="#">Log out</a>
+    </nav>
+
+    </div>
+  </header>
+
+  <main class="container dash-wrap">
+    <h1 class="dash-title">👋 Welcome, <span id="userName">Alex</span></h1>
+
+    <!-- Top: Summary + Chart -->
+    <section class="dash-grid">
+      <article class="card dash-card">
+        <h2 class="section-title">This Month’s Spending Summary</h2>
+        <ul class="stat-list">
+          <li>Total Income: <strong id="totalIncome">$0</strong></li>
+          <li>Total Expenses: <strong id="totalExpenses">$0</strong></li>
+          <li>Net Savings: <strong id="netSavings">$0</strong> <span id="savingsEmoji">✅</span></li>
+          <li>Top Spending Category: <strong id="topCategory">—</strong></li>
+          <li>Remaining Budget: <strong id="remainingBudget">—</strong></li>
+        </ul>
+      </article>
+
+      <article class="card dash-card">
+        <h2 class="section-title">Spending by Category</h2>
+        <canvas id="pieChart" height="220"></canvas>
+      </article>
+    </section>
+
+    <!-- Progress -->
+    <section class="card progress-card">
+      <h3 class="progress-title">Monthly Saving Progress</h3>
+      <div class="progress">
+        <div id="progressBar" class="progress-inner" style="width:0%"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">$0 / $0</div>
+    </section>
+
+    <!-- Recent transactions + Add -->
+    <section class="card tx-card">
+      <div class="tx-header">
+        <h2 class="section-title">Recent Transactions</h2>
+        <button id="addBtn" class="btn btn-ghost" type="button" title="Add a transaction">＋ Add</button>
+      </div>
+
+      <!-- Add panel -->
+      <div id="addPanel" class="tx-add hidden">
+        <form id="addForm">
+          <div class="row">
+            <label>
+              <span>Date</span>
+              <input id="addDate" type="date" required />
+            </label>
+
+            <label>
+              <span>Type</span>
+              <select id="addType" required>
+                <option value="expense" selected>Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Category</span>
+              <select id="addCategory" required>
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Rent</option>
+                <option>Groceries</option>
+                <option>Entertainment</option>
+                <option>Utilities</option>
+                <option>Other</option>
+                <option>Income</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Amount</span>
+              <input id="addAmount" type="number" step="0.01" min="0" placeholder="0.00" required />
+            </label>
+          </div>
+
+          <label class="field" style="margin-top:10px;">
+            <span>Description</span>
+            <input id="addDesc" type="text" placeholder="e.g., Groceries at Trader Joe’s" />
+          </label>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Add Transaction</button>
+            <button id="addCancel" type="button" class="btn btn-ghost">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Your existing prototype rows go here -->
+      <div id="txList" class="tx-list">
+        <!-- Example structure (you can replace with your prototype items):
+        <div class="tx-item">
+          <div class="tx-main">
+            <div class="tx-desc">Coffee</div>
+            <div class="tx-meta">Food · Aug 9</div>
+          </div>
+          <div class="tx-amt neg">−$4.95</div>
+        </div>
+        -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Page script -->
+  <script src="./dashboard.js"></script>
+</body>
+</html>
