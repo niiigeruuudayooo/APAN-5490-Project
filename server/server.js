@@ -8,7 +8,8 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 
-const { connectDB } = require('./config/db');
+const dbConn = require('./config/db');
+const connectDB = typeof dbConn === 'function' ? dbConn : dbConn.connectDB;
 
 // Route imports
 const authRoutes = require('./routes/auth');
