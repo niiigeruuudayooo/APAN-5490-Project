@@ -8,47 +8,52 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 
-const { connectDB } = require('./config/db.js'); // 注意 .js 后缀
+const { connectDB } = require('./config/db'); // 你已统一为 { connectDB } 导出
 
-// Route imports
-const authRoutes = require('./routes/auth');
-const transactionsRoutes = require('./routes/transactions');
-const budgetsRoutes = require('./routes/budgets');
-const healthRoutes = require('./routes/healthRoutes');
+// 业务路由（来自你同学分支）
+const authRoutes = require('./routes/auth');               // /api/auth
+const transactionsRoutes = require('./routes/transactions'); // /api/transactions
+const budgetsRoutes = require('./routes/budgets');         // /api/budgets
+
+// 健康检查控制器（你刚创建的）
+const { getDbStatus, ping } = require('./controllers/healthController');
 
 const app = express();
 
-// ===== Database Connection =====
+// ===== 连接数据库 =====
 connectDB().catch(err => {
   console.error('❌ MongoDB connection failed:', err);
   process.exit(1);
 });
 
-// ===== Security & Middleware =====
+// ===== 安全 & 通用中间件 =====
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Rate limiting for auth endpoints
+// 对认证接口做轻量限流
 app.use('/api/auth', rateLimit({ windowMs: 60 * 1000, max: 30 }));
 
-// ===== Static Frontend =====
+// ===== 静态资源（如有 public/index.html）=====
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// ===== API Routes =====
+// ===== API 路由 =====
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/budgets', budgetsRoutes);
-app.use('/', healthRoutes); // Health check routes
 
-// ===== SPA / Frontend Fallback =====
+// ===== 健康检查（内联到 server.js）=====
+app.get('/health/db', getDbStatus);
+app.get('/api/ping', ping);
+
+// ===== 单页回退（可选）=====
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// ===== Start Server =====
+// ===== 启动 =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
