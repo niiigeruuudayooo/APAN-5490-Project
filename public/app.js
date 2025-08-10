@@ -1,79 +1,80 @@
-const API_BASE = ""; // same origin, e.g. http://localhost:3000
+let token = null; // 若后端返回 token，会保存并附带到后续请求
 
-// Store token
-let token = localStorage.getItem("token");
+const $ = (id) => document.getElementById(id);
+const show = (id, on) => ($(id).style.display = on ? 'block' : 'none');
+const say = (id, t='') => ($(id).textContent = t);
 
-// Register
-document.getElementById("register-btn").addEventListener("click", async () => {
-  const email = document.getElementById("reg-email").value;
-  const password = document.getElementById("reg-password").value;
-
-  const res = await fetch(`${API_BASE}/api/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
+// 统一封装 fetch（自动带 cookie、token）
+async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}), 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(path, {
+    credentials: 'include',    // 关键：携带 HttpOnly Cookie
+    ...options,
+    headers
   });
-  const data = await res.json();
-  console.log("Register:", data);
-  alert(data.message || "Registered!");
-});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || res.statusText);
+  return data;
+}
 
-// Login
-document.getElementById("login-btn").addEventListener("click", async () => {
-  const email = document.getElementById("login-email").value;
-  const password = document.getElementById("login-password").value;
+// 1) 登录
+$('login-btn').addEventListener('click', async () => {
+  try {
+    say('auth-msg', 'Logging in...');
+    const email = $('login-email').value.trim();
+    const password = $('login-password').value.trim();
 
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
 
-  if (res.ok && data.token) {
-    token = data.token;
-    localStorage.setItem("token", token);
-    alert("Login successful!");
-    document.getElementById("auth-section").style.display = "none";
-    document.getElementById("transaction-section").style.display = "block";
-  } else {
-    alert(data.message || "Login failed");
+    // 兼容：若后端返回 token 就存起来；仅用 Cookie 也OK
+    if (data.token) token = data.token;
+
+    say('auth-msg', 'Login success ✔');
+    show('auth', false);
+    show('after-login', true);
+  } catch (e) {
+    say('auth-msg', e.message || 'Login failed');
   }
 });
 
-// Add Transaction
-document.getElementById("add-transaction-btn").addEventListener("click", async () => {
-  const date = document.getElementById("trans-date").value;
-  const amount = parseFloat(document.getElementById("trans-amount").value);
-  const type = document.getElementById("trans-type").value;
-  const category = document.getElementById("trans-category").value;
-  const note = document.getElementById("trans-note").value;
+// 2) 获取交易列表
+$('btn-load').addEventListener('click', async () => {
+  try {
+    say('api-msg', 'Loading transactions...');
+    const list = await api('/api/transactions'); // GET
 
-  const res = await fetch(`${API_BASE}/api/transactions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({ date, amount, type, category, note })
-  });
-  const data = await res.json();
-  console.log("Add Transaction:", data);
-  alert(data.message || "Transaction added!");
+    const ul = $('tx-list');
+    ul.innerHTML = '';
+    (list || []).forEach(t => {
+      const li = document.createElement('li');
+      const d = new Date(t.date).toISOString().slice(0,10);
+      li.textContent = `${d} | ${t.type} | ${t.amount} | ${t.category} | ${t.note || ''}`;
+      ul.appendChild(li);
+    });
+    say('api-msg', `Loaded ${list.length} items ✔`);
+  } catch (e) {
+    say('api-msg', e.message || 'Load failed');
+  }
 });
 
-// Load Transactions
-document.getElementById("load-transactions-btn").addEventListener("click", async () => {
-  const res = await fetch(`${API_BASE}/api/transactions`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const data = await res.json();
-
-  const list = document.getElementById("transaction-list");
-  list.innerHTML = "";
-  data.forEach(t => {
-    const li = document.createElement("li");
-    li.textContent = `${t.date.slice(0,10)} | ${t.type} | $${t.amount} | ${t.category} | ${t.note}`;
-    list.appendChild(li);
-  });
+// 3) 新增一条交易（便于验证 POST 受保护接口）
+$('btn-add').addEventListener('click', async () => {
+  try {
+    const now = new Date();
+    const body = {
+      date: now.toISOString().slice(0,10),
+      amount: -9.9,
+      type: 'expense',
+      category: 'Test',
+      note: 'API smoke test'
+    };
+    await api('/api/transactions', { method: 'POST', body: JSON.stringify(body) });
+    say('api-msg', 'Added 1 test transaction ✔');
+  } catch (e) {
+    say('api-msg', e.message || 'Add failed');
+  }
 });
