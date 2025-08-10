@@ -8,7 +8,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 
-const { connectDB } = require('./config/db');
+const { connectDB } = require('./config/db.js'); // 注意 .js 后缀
 
 // Route imports
 const authRoutes = require('./routes/auth');
