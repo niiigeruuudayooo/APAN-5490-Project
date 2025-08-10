@@ -27,4 +27,5 @@ async function connectDB() {
     return mongoose.connection;
 }
 
-module.exports = connectDB;
+// 改成对象导出
+module.exports = { connectDB };
