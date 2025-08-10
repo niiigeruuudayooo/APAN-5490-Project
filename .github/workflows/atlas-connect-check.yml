@@ -1,0 +1,44 @@
+name: Atlas Connect Check
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ back_end_branch ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      PORT: 3000
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: testsecret
+      NODE_ENV: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm ci || npm i
+
+      - name: Start server
+        run: |
+          nohup node server/server.js >/tmp/server.log 2>&1 &
+          for i in {1..30}; do
+            sleep 1
+            if curl -sf "http://localhost:${PORT}/health/db" >/dev/null; then
+              echo "Server is up."
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start. Last 50 lines of log:"
+              tail -n 50 /tmp/server.log || true
+              exit 1
+            fi
+          done
+
+      - name: Health check
+        run: curl -i "http://localhost:${PORT}/health/db"
+
+      - name: Server log
+        if: always()
+        run: tail -n 50 /tmp/server.log || true
