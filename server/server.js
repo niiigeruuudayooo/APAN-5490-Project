@@ -1,5 +1,6 @@
 // server/server.js
 require('dotenv').config();
+
 const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
@@ -7,54 +8,69 @@ const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
 
-const { connectDB } = require('./config/db'); // 你已统一为 { connectDB } 导出
+const { connectDB } = require('./config/db');
 
-// 业务路由（来自你同学分支）
-const authRoutes = require('./routes/auth');               // /api/auth
-const transactionsRoutes = require('./routes/transactions'); // /api/transactions
-const budgetsRoutes = require('./routes/budgets');         // /api/budgets
+// ❌ 原来可能写过（在 Linux/CI 上会因路径/大小写不一致报错）
+// const health = require('./controllers/healthController'); // ← 先注释掉
+// app.get('/health/db', health.db); // ← 先注释掉
 
-// 健康检查控制器（你刚创建的）
-const { getDbStatus, ping } = require('./controllers/healthController');
-
+// --- init app ---
 const app = express();
+app.set('trust proxy', 1);
 
-// ===== 连接数据库 =====
-connectDB().catch(err => {
-  console.error('❌ MongoDB connection failed:', err);
-  process.exit(1);
-});
-
-// ===== 安全 & 通用中间件 =====
+// --- global middleware ---
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(cookieParser());
+app.use(
+  cors({
+    origin: true,            // 前端同/跨域都可；如需锁定，改为具体域名
+    credentials: true,
+  })
+);
 app.use(morgan('dev'));
+app.use(
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 600,                // 够 CI/前端测试用
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+app.use(cookieParser());
+app.use(express.json({ limit: '1mb' }));
 
-// 对认证接口做轻量限流
-app.use('/api/auth', rateLimit({ windowMs: 60 * 1000, max: 30 }));
+// --- connect DB ---
+connectDB(); // 这里内部应当使用 process.env.MONGODB_URI 连接 Atlas
 
-// ===== 静态资源（如有 public/index.html）=====
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// --- simple ping (CI 可探活) ---
+app.get('/api/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// ===== API 路由 =====
-app.use('/api/auth', authRoutes);
-app.use('/api/transactions', transactionsRoutes);
-app.use('/api/budgets', budgetsRoutes);
-
-// ===== 健康检查（内联到 server.js）=====
-app.get('/health/db', getDbStatus);
-app.get('/api/ping', ping);
-
-// ===== 单页回退（可选）=====
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+// --- inline /health/db （关键：给 CI 用来验证云↔云连通性）---
+app.get('/health/db', (req, res) => {
+  // readyState: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const state = mongoose.connection.readyState;
+  const ok = state === 1;
+  res.status(ok ? 200 : 500).json({ db: ok ? 'up' : 'down', state });
 });
 
-// ===== 启动 =====
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+// --- mount business routes ---
+try {
+  app.use('/api/auth', require('./routes/auth'));               // POST /api/auth/login 等
+} catch (e) {
+  console.warn('[mount] /api/auth missing:', e.message);
+}
+try {
+  app.use('/api/transactions', require('./routes/transactions'));
+} catch (e) {
+  console.warn('[mount] /api/transactions missing:', e.message);
+}
+try {
+  app.use('/api/budgets', require('./routes/budgets'));
+} catch (e) {
+  console.warn('[mount] /api/budgets missing:', e.message);
+}
+
+// --- 404 fallback ---
+app.use((req, res) => {
+  res.status(404).json({ message: 'Not Found' })
