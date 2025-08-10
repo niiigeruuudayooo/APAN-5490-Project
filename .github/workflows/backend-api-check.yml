@@ -1,0 +1,103 @@
+name: Backend API Check (cloud ↔ Atlas)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ back_end_branch ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      PORT: 3000
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}   # 必填：Atlas连接串(含用户名密码)
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}     # 必填：随便一串安全随机字符
+      NODE_ENV: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Start server
+        run: |
+          nohup npm start >/tmp/server.log 2>&1 &
+          for i in {1..30}; do
+            sleep 1
+            if curl -sf "http://localhost:${PORT}/health/db" >/dev/null; then
+              echo "Server is up."
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start. Last 200 lines of log:"
+              tail -n 200 /tmp/server.log || true
+              exit 1
+            fi
+          done
+
+      - name: Health check
+        run: |
+          echo "== /health/db =="
+          curl -i "http://localhost:${PORT}/health/db"
+
+      - name: Register or ignore if exists
+        run: |
+          echo "== Register =="
+          code=$(curl -s -o /tmp/reg.json -w "%{http_code}" -X POST "http://localhost:${PORT}/api/auth/register" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI User","email":"ciuser@example.com","password":"secret123"}')
+          cat /tmp/reg.json || true
+          # 201=created, 409=email exists 都算通过
+          if [ "$code" != "201" ] && [ "$code" != "409" ]; then
+            echo "Register failed with HTTP $code"
+            exit 1
+          fi
+
+      - name: Login and capture TOKEN
+        run: |
+          echo "== Login =="
+          resp=$(curl -s -X POST "http://localhost:${PORT}/api/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ciuser@example.com","password":"secret123"}')
+          echo "$resp"
+          TOKEN=$(echo "$resp" | jq -r '.token')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "No token received."
+            exit 1
+          fi
+          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Create a sample transaction
+        run: |
+          echo "== Create Transaction =="
+          curl -f -i -X POST "http://localhost:${PORT}/api/transactions" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"date":"2025-08-01","amount":12.34,"type":"expense","category":"Food","paymentMethod":"Card","note":"ci-add"}'
+
+      - name: List by month
+        run: |
+          echo "== List Transactions (month) =="
+          curl -f -i "http://localhost:${PORT}/api/transactions?month=2025-08" \
+            -H "Authorization: Bearer $TOKEN"
+
+      - name: Summary by month
+        run: |
+          echo "== Summary (month) =="
+          curl -f -i "http://localhost:${PORT}/api/transactions/summary?month=2025-08" \
+            -H "Authorization: Bearer $TOKEN"
+
+      - name: Tail server log on success (for debug context)
+        if: always()
+        run: |
+          echo "--- SERVER LOG (last 200 lines) ---"
+          tail -n 200 /tmp/server.log || true
