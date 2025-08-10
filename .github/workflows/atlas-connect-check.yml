@@ -1,0 +1,37 @@
+name: Atlas Connect Check (script)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ Backend-1.0 ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      MONGODB_URI: ${{ secrets.MONGO_URI }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install driver
+        run: npm i mongoose@^8 --no-save
+      - name: Connect to Atlas
+        run: |
+          node - <<'NODE'
+          const mongoose = require('mongoose');
+          (async () => {
+            try {
+              const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+              if (!uri) throw new Error('MONGO_URI secret missing');
+              await mongoose.connect(uri, { serverSelectionTimeoutMS: 15000 });
+              console.log('✅ Connected to', mongoose.connection.name);
+              await mongoose.disconnect();
+              process.exit(0);
+            } catch (e) {
+              console.error('❌', e);
+              process.exit(1);
+            }
+          })();
+          NODE
