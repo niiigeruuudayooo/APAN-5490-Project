@@ -1,24 +1,25 @@
 // server/config/db.js
 const mongoose = require('mongoose');
 
-/**
- * Connect to MongoDB Atlas.
- * Make sure MONGO_URI in .env is your Atlas connection string, e.g.:
- * mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority
- */
 module.exports = async function connectDB() {
-  const uri = process.env.MONGO_URI;
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
   if (!uri) {
-    console.error('❌ Missing MONGO_URI in .env');
+    console.error('❌ Missing MONGO_URI / MONGODB_URI in .env');
     process.exit(1);
   }
 
   try {
     await mongoose.connect(uri, {
-      // modern Mongoose no longer needs useNewUrlParser/useUnifiedTopology explicitly
+      serverSelectionTimeoutMS: 10000, // 10s 快速失败，便于定位 Atlas 连通性
       maxPoolSize: 10,
     });
-    console.log('✅ MongoDB (Atlas) connected');
+
+    const { name, host } = mongoose.connection;
+    console.log(`✅ MongoDB (Atlas) connected → db: ${name}, host: ${host}`);
+
+    // 可选：事件日志（方便排查偶发断线）
+    mongoose.connection.on('disconnected', () => console.warn('⚠️  MongoDB disconnected'));
+    mongoose.connection.on('error', (e) => console.error('❌ Mongo error:', e.message));
   } catch (err) {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
