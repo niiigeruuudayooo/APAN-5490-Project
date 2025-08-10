@@ -7,8 +7,6 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 // ---- Model (Product) ----
-// If you already have this in a separate file like ./models/Product.js,
-// you can keep that and require it. For a minimal inline schema:
 const ProductSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -42,39 +40,34 @@ app.get('/api/products', async (_req, res) => {
   }
 });
 
-// (Optional) Seed one-time route for quick demo (disable in prod)
-// app.post('/api/products/seed', async (_req, res) => {
-//   try {
-//     await Product.deleteMany({});
-//     await Product.insertMany([
-//       { name: 'Eco Battery Pack', description: 'High-capacity rechargeable storage for your solar systems.', img: 'product1-placeholder.png' },
-//       { name: 'Smart Inverter', description: 'Convert and optimize energy usage with intelligent tech.', img: 'product2-placeholder.png' },
-//       { name: 'All in One System', description: 'Everything you need to start your sustainable home journey.', img: 'product3-placeholder.png' }
-//     ]);
-//     res.json({ ok: true });
-//   } catch (e) {
-//     console.error(e);
-//     res.status(500).json({ message: 'Seed failed' });
-//   }
-// });
-
 // ---- MongoDB Atlas connection ----
-const MONGO_URI = process.env.MONGO_URI; // put your Atlas URI in .env
+// 支持两种变量名：MONGO_URI 或 MONGODB_URI（二选一即可）
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 if (!MONGO_URI) {
-  console.warn('⚠️  MONGO_URI is not set. Please add it to your .env (MongoDB Atlas connection string).');
+  console.warn('⚠️  MONGO_URI/MONGODB_URI is not set. Please add it to your .env / GitHub Secrets.');
 }
 
 mongoose
   .connect(MONGO_URI, {
-    // With Mongoose 8+, defaults are good; you can add options if needed.
-    // serverSelectionTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 10000, // 10s 快速失败
   })
-  .then(() => console.log('✅ MongoDB Atlas connected'))
+  .then(() => {
+    const { name, host } = mongoose.connection;
+    console.log(`✅ MongoDB Atlas connected (db: ${name}, host: ${host})`);
+  })
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
+
+// ---- Health check (for CI / self-check) ----
+app.get('/health/db', (_req, res) => {
+  // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const state = mongoose.connection.readyState;
+  const ok = state === 1;
+  res.status(ok ? 200 : 500).json({ db: ok ? 'up' : 'down', state });
+});
 
 // ---- Start server ----
 const PORT = process.env.PORT || 3000;
