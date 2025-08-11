@@ -1,6 +1,8 @@
 /**
- * Link existing CSV data in MongoDB Atlas to the demo user by adding userId and normalizing fields
- * Author: Jonas He (modified with cloud CSV support)
+ * Patch existing CSV-imported transactions in MongoDB Atlas by attaching demo user's userId.
+ * - Uses DEMO_USER_ID if provided; otherwise falls back to DEMO_EMAIL lookup.
+ * - Only patches documents where userId does NOT exist.
+ * - Also back-fills derived fields (month / absAmount / isLarge) if missing.
  */
 
 const mongoose = require("mongoose");
@@ -8,130 +10,143 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const User = require("../models/User");
-const Transaction = require("../models/Transaction");
 
 const {
   MONGO_URI,
-  DEMO_EMAIL,
   SOURCE_DB,
   CSV_COLLECTION,
-  MODE,
-  TARGET_COLLECTION,
+  DEMO_USER_ID,
+  DEMO_EMAIL,
   CSV_DATE_FIELD,
   CSV_AMOUNT_FIELD,
   CSV_CATEGORY_FIELD,
   CSV_NOTE_FIELD,
   CSV_PAYMENT_FIELD,
   CSV_DAYOFWEEK_FIELD,
-  CLEAR_BEFORE,
   IS_LARGE_THRESHOLD,
   BATCH_SIZE
 } = process.env;
 
+const BATCH = parseInt(BATCH_SIZE || "1000", 10);
+const LARGE_TH = parseFloat(IS_LARGE_THRESHOLD || "1000");
+
+function parseMonthStr(dateObj) {
+  if (!dateObj || isNaN(dateObj.getTime())) return null;
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function parseCsvDate(raw) {
+  // Accepts "8/15/18" -> Date(2018-08-15)
+  if (!raw || typeof raw !== "string") return null;
+  const parts = raw.split("/");
+  if (parts.length !== 3) return null;
+  const m = parseInt(parts[0], 10);
+  const d = parseInt(parts[1], 10);
+  const y = parseInt(parts[2], 10);
+  if (Number.isNaN(m) || Number.isNaN(d) || Number.isNaN(y)) return null;
+  const fullY = y < 100 ? 2000 + y : y;
+  return new Date(fullY, m - 1, d);
+}
+
 (async () => {
   try {
-    // Connect to MongoDB Atlas
+    // 1) Connect
     await mongoose.connect(MONGO_URI, { dbName: SOURCE_DB });
-    console.log(`✅ Connected to MongoDB Atlas: ${SOURCE_DB}`);
+    console.log(`✅ Connected to MongoDB Atlas DB: ${SOURCE_DB}`);
 
-    // Find demo user
-    const demoUser = await User.findOne({ email: DEMO_EMAIL });
-    if (!demoUser) {
-      throw new Error(`Demo user with email ${DEMO_EMAIL} not found.`);
-    }
-    console.log(`👤 Found demo user: ${demoUser.name} (${demoUser._id})`);
-
-    // Get source collection (raw CSV data)
-    const db = mongoose.connection.db;
-    const sourceCollection = db.collection(CSV_COLLECTION);
-
-    // Target collection
-    let targetCollection;
-    if (MODE === "copy") {
-      targetCollection = db.collection(TARGET_COLLECTION);
-      if (CLEAR_BEFORE === "true") {
-        await targetCollection.deleteMany({ userId: demoUser._id });
-        console.log(`🗑 Cleared old data in ${TARGET_COLLECTION} for demo user`);
-      }
+    // 2) Resolve demo user id
+    let demoUserId;
+    if (DEMO_USER_ID) {
+      demoUserId = new mongoose.Types.ObjectId(DEMO_USER_ID);
+      console.log(`👤 Using DEMO_USER_ID from .env: ${demoUserId}`);
+    } else if (DEMO_EMAIL) {
+      const found = await User.findOne({ email: DEMO_EMAIL });
+      if (!found) throw new Error(`Demo user with email ${DEMO_EMAIL} not found`);
+      demoUserId = found._id;
+      console.log(`👤 Resolved demo user by email ${DEMO_EMAIL}: ${demoUserId}`);
     } else {
-      targetCollection = sourceCollection; // patch mode updates in-place
+      throw new Error("Please set DEMO_USER_ID or DEMO_EMAIL in .env");
     }
 
-    // Cursor to iterate source data
-    const cursor = sourceCollection.find({});
-    let batch = [];
+    // 3) Collections
+    const db = mongoose.connection.db;
+    const coll = db.collection(CSV_COLLECTION);
+
+    // 4) Iterate only docs missing userId
+    const cursor = coll.find({ userId: { $exists: false } });
+    let seen = 0;
+    let updated = 0;
     let ops = [];
-    const batchSize = parseInt(BATCH_SIZE) || 1000;
 
     while (await cursor.hasNext()) {
       const doc = await cursor.next();
+      seen++;
 
-      // Parse date field
-      const rawDate = doc[CSV_DATE_FIELD];
-      let dateObj = null;
-      let monthStr = null;
-      if (rawDate) {
-        // Handle format like 8/15/18
-        const [m, d, y] = rawDate.split("/").map(v => parseInt(v));
-        const fullYear = y < 100 ? 2000 + y : y; // handle YY format
-        dateObj = new Date(fullYear, m - 1, d);
-        monthStr = `${fullYear}-${String(m).padStart(2, "0")}`;
+      // Prepare update
+      const update = { $set: { userId: demoUserId } };
+
+      // Back-fill derived fields *if missing*
+      // date / month
+      if (!doc.date && doc[CSV_DATE_FIELD]) {
+        const dateObj = parseCsvDate(doc[CSV_DATE_FIELD]);
+        if (dateObj) {
+          update.$set.date = dateObj;
+          update.$set.month = parseMonthStr(dateObj);
+        }
+      } else if (!doc.month && doc.date instanceof Date) {
+        update.$set.month = parseMonthStr(doc.date);
       }
 
-      // Amount (keep sign)
-      const amount = Number(doc[CSV_AMOUNT_FIELD]);
-      const absAmount = Math.abs(amount);
-
-      // New transaction document
-      const normalized = {
-        userId: demoUser._id,
-        date: dateObj,
-        month: monthStr,
-        amount,
-        absAmount,
-        isLarge: absAmount >= (parseFloat(IS_LARGE_THRESHOLD) || 1000),
-        category: doc[CSV_CATEGORY_FIELD] || "",
-        description: doc[CSV_NOTE_FIELD] || "",
-        source: doc[CSV_PAYMENT_FIELD] || "",
-        dayOfWeek: doc[CSV_DAYOFWEEK_FIELD] || ""
-      };
-
-      if (MODE === "copy") {
-        batch.push(normalized);
-        if (batch.length >= batchSize) {
-          await targetCollection.insertMany(batch, { ordered: false });
-          console.log(`📥 Inserted ${batch.length} docs into ${TARGET_COLLECTION}`);
-          batch = [];
+      // absAmount / isLarge
+      if (doc[CSV_AMOUNT_FIELD] !== undefined && (doc.absAmount === undefined || doc.isLarge === undefined)) {
+        const amt = Number(doc[CSV_AMOUNT_FIELD]);
+        if (!Number.isNaN(amt)) {
+          if (doc.absAmount === undefined) update.$set.absAmount = Math.abs(amt);
+          if (doc.isLarge === undefined) update.$set.isLarge = Math.abs(amt) >= LARGE_TH;
         }
-      } else {
-        ops.push({
-          updateOne: {
-            filter: { _id: doc._id },
-            update: { $set: normalized }
-          }
-        });
-        if (ops.length >= batchSize) {
-          await targetCollection.bulkWrite(ops, { ordered: false });
-          console.log(`✏ Updated ${ops.length} docs in ${CSV_COLLECTION}`);
-          ops = [];
+      }
+
+      // Optionally map CSV-named fields into canonical keys if missing
+      if (doc[CSV_CATEGORY_FIELD] !== undefined && doc.category === undefined) {
+        update.$set.category = doc[CSV_CATEGORY_FIELD];
+      }
+      if (doc[CSV_NOTE_FIELD] !== undefined && doc.description === undefined) {
+        update.$set.description = doc[CSV_NOTE_FIELD];
+      }
+      if (doc[CSV_PAYMENT_FIELD] !== undefined && doc.source === undefined) {
+        update.$set.source = doc[CSV_PAYMENT_FIELD];
+      }
+      if (doc[CSV_DAYOFWEEK_FIELD] !== undefined && doc.dayOfWeek === undefined) {
+        update.$set.dayOfWeek = doc[CSV_DAYOFWEEK_FIELD];
+      }
+
+      ops.push({
+        updateOne: {
+          filter: { _id: doc._id, userId: { $exists: false } }, // 安全：只给未标记的打标签
+          update
         }
+      });
+
+      if (ops.length >= BATCH) {
+        const res = await coll.bulkWrite(ops, { ordered: false });
+        updated += (res?.modifiedCount || 0) + (res?.upsertedCount || 0);
+        console.log(`✏ Patched ${ops.length} docs (cumulative updated: ${updated})`);
+        ops = [];
       }
     }
 
-    // Final flush
-    if (MODE === "copy" && batch.length > 0) {
-      await targetCollection.insertMany(batch, { ordered: false });
-      console.log(`📥 Inserted remaining ${batch.length} docs`);
-    }
-    if (MODE !== "copy" && ops.length > 0) {
-      await targetCollection.bulkWrite(ops, { ordered: false });
-      console.log(`✏ Updated remaining ${ops.length} docs`);
+    if (ops.length > 0) {
+      const res = await coll.bulkWrite(ops, { ordered: false });
+      updated += (res?.modifiedCount || 0) + (res?.upsertedCount || 0);
+      console.log(`✏ Patched remaining ${ops.length} docs (total updated: ${updated})`);
     }
 
-    console.log("✅ Linking CSV data to demo user completed!");
+    console.log(`✅ Done. Scanned: ${seen}, Updated: ${updated}.`);
     await mongoose.disconnect();
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error("❌ Error in linkCsvToDemoUser:", err);
     process.exit(1);
   }
 })();
