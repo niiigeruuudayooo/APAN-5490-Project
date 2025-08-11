@@ -7,7 +7,8 @@
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
     "seed:user": "node server/seed/createDemoUser.js",
-    "seed:tx": "node server/seed/seedTransactions.js"
+    "seed:link": "node server/seed/linkCsvToDemoUser.js",
+    
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
